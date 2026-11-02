@@ -1,12 +1,19 @@
 FROM alpine:latest
 
-# Установка необходимых утилит и Xray
-RUN apk add --no-cache curl bash jq ca-certificates unzip && \
-    bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
+# Установка утилит
+RUN apk add --no-cache curl unzip ca-certificates jq
+
+# Прямая загрузка и распаковка ядра Xray (без капризных скриптов установки)
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then XRAY_ARCH="64"; \
+    elif [ "$ARCH" = "aarch64" ]; then XRAY_ARCH="arm64-v8a"; \
+    else XRAY_ARCH="64"; fi && \
+    curl -L -o /tmp/xray.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-$XRAY_ARCH.zip && \
+    mkdir -p /usr/local/bin /etc/xray && \
+    unzip /tmp/xray.zip -d /usr/local/bin/ && \
+    rm /tmp/xray.zip
 
 # Создание конфигурации Xray (VLESS + WebSocket)
-# Render автоматически передает нужный порт через переменную среды $PORT
-RUN mkdir -p /etc/xray
 RUN echo '{\
   "log": {"loglevel": "warning"},\
   "inbounds": [{\
